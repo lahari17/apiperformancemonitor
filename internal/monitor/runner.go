@@ -72,6 +72,7 @@ func (r *Runner) checkOne(ctx context.Context, u store.URL) {
 
 	t0 := time.Now()
 	req, _ := http.NewRequestWithContext(cctx, http.MethodGet, u.URL, nil)
+	req.Header.Set("User-Agent", "APIPerformanceMonitor/1.0 (+https://github.com/monitor)")
 	resp, err := http.DefaultClient.Do(req)
 	latency := time.Since(t0).Milliseconds()
 
@@ -91,7 +92,7 @@ func (r *Runner) checkOne(ctx context.Context, u store.URL) {
 
 	// persist observation
 	_ = r.S.InsertCheck(ctx, store.Check{
-		URLID:     u.ID,
+		URLID:      u.ID,
 		StatusCode: status,
 		LatencyMs:  ptrI(int32(latency)),
 		OK:         ok,
@@ -121,12 +122,21 @@ func (r *Runner) checkOne(ctx context.Context, u store.URL) {
 	// Non-OK path (DOWN or SLOW): ask throttle if we should notify now
 	if kind != "" {
 		shouldNotify, isRecovery := r.Throttle.Decide(u.URL, kind, state)
-		text := fmt.Sprintf("%s | reason=%s status=%v latency=%dms", u.URL, reason, status, latency)
+		statusValue := "unknown"
+		if status != nil {
+			statusValue = fmt.Sprintf("%d", *status)
+		}
+		text := fmt.Sprintf("%s | %s | reason=%s status=%s latency=%dms", u.URL, kind, reason, statusValue, latency)
 
 		// first failure (or per throttle window)
 		if shouldNotify {
-			r.sendEmail("[ALERT] "+u.URL+" — "+reason, htmlFor(u.URL, reason, status, latency), text)
-			r.sendDiscord(text)
+			alertIcon := "🔴"
+			if kind == "SLOW" {
+				alertIcon = "🟡"
+			}
+			subject := fmt.Sprintf("%s [%s] %s - %s", alertIcon, kind, u.URL, reason)
+			r.sendEmail(subject, htmlForAlert(u.URL, kind, reason, status, latency), text)
+			r.sendDiscord(alertIcon + " " + text)
 		}
 
 		// (defensive) recovery should not happen here since state != OK,
@@ -143,9 +153,18 @@ func (r *Runner) checkOne(ctx context.Context, u store.URL) {
 	_, recDown := r.Throttle.Decide(u.URL, "DOWN", alert.StateOK)
 	_, recSlow := r.Throttle.Decide(u.URL, "SLOW", alert.StateOK)
 	if (recDown || recSlow) && os.Getenv("ALERT_ON_RECOVERY") == "true" {
-		text := fmt.Sprintf("%s | RECOVERED | status=%v latency=%dms", u.URL, status, latency)
-		r.sendEmail("[RECOVERED] "+u.URL, "<p>Recovered</p>", text)
-		r.sendDiscord(text)
+		recoveryType := "DOWN"
+		if recSlow && !recDown {
+			recoveryType = "SLOW"
+		}
+		statusValue := "unknown"
+		if status != nil {
+			statusValue = fmt.Sprintf("%d", *status)
+		}
+		text := fmt.Sprintf("%s | RECOVERED from %s | status=%s latency=%dms", u.URL, recoveryType, statusValue, latency)
+		htmlMsg := fmt.Sprintf("<h3>✅ %s - RECOVERED</h3><p>Your website is now accessible!</p><p>Previous status: %s<br/>Current status: %s<br/>Response time: %d ms</p>", u.URL, recoveryType, statusValue, latency)
+		r.sendEmail("✅ [RECOVERED] "+u.URL+" - Your website is back online", htmlMsg, text)
+		r.sendDiscord("🟢 " + text)
 	}
 }
 
@@ -163,6 +182,26 @@ func (r *Runner) sendDiscord(msg string) {
 	if wh := os.Getenv("DISCORD_WEBHOOK_URL"); wh != "" {
 		_ = alert.SendDiscord(wh, msg)
 	}
+}
+
+func htmlForAlert(url, kind, reason string, status *int32, latency int64) string {
+	alertIcon := "🔴"
+	alertColor := "#dc3545"
+	if kind == "SLOW" {
+		alertIcon = "🟡"
+		alertColor = "#ffc107"
+	}
+	return fmt.Sprintf(`
+		<h3>%s %s - %s</h3>
+		<p style="color: %s; font-weight: bold;">Your website is not accessible!</p>
+		<p>
+			<strong>URL:</strong> %s<br/>
+			<strong>Issue:</strong> %s<br/>
+			<strong>Status Code:</strong> %v<br/>
+			<strong>Response Time:</strong> %d ms
+		</p>
+		<p><em>Please check your website and resolve the issue.</em></p>
+	`, alertIcon, url, kind, alertColor, url, reason, status, latency)
 }
 
 func htmlFor(url, reason string, status *int32, latency int64) string {

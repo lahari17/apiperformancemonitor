@@ -48,3 +48,11 @@ export async function addURL(payload: { url: string; expected_status?: number; s
   if (!res.ok) throw new Error("Failed to add URL");
   return res.json() as Promise<{ id: number }>;
 }
+
+export async function deleteURL(id: number) {
+  const res = await fetch(`${API}/urls/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete URL");
+  return res.json() as Promise<{ success: boolean }>;
+}
