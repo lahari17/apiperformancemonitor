@@ -1,0 +1,75 @@
+# Root .gitignore for repo-wide ignores
+# (The web app has its own `web/.gitignore`; this complements it for Go + general artifacts.)
+
+############################
+# Go build artifacts
+############################
+# Binaries + test/build outputs
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Module/vendor cache (uncomment vendor/ if you ever `go mod vendor`)
+# vendor/
+
+############################
+# Logs & runtime output
+############################
+*.log
+server.log
+nohup.out
+
+############################
+# Dumps / backups
+############################
+*.dump
+webmon_backup.dump
+
+############################
+# Coverage / reports
+############################
+coverage/
+*.coverprofile
+
+############################
+# Environment & secrets
+############################
+.env*
+.envrc
+*.pem
+
+############################
+# Node / Next.js (for convenience at root)
+############################
+web/node_modules/
+web/.next/
+web/out/
+web/build/
+web/.vercel/
+
+############################
+# TypeScript build info
+############################
+*.tsbuildinfo
+
+############################
+# OS / Editor junk
+############################
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+############################
+# Misc
+############################
+# Yarn v2 / PNPM artifacts (if ever used at root)
+.pnp.*
+.pnpm-debug.log*
+
+# End of root .gitignore
