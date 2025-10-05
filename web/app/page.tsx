@@ -1,3 +1,14 @@
+/*
+ * API Performance Monitor - Frontend Dashboard
+ * Copyright (C) 2024 Lahari Sandepudi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ *
+ * For commercial licensing, contact: lahari@laharisandepudi.com
+ */
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";

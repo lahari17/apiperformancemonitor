@@ -1,35 +1,52 @@
+/*
+ * API Performance Monitor
+ * Copyright (C) 2024 Lahari Sandepudi
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License
+ * For commercial licensing, contact: info@laharisandepudi.com
+ */
+
 package main
 
 import (
 	"context"
 	"log"
 	"os"
-	"time"
 	"strconv"
-	"github.com/joho/godotenv"
-	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors"
+	"time"
 
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+
+	"apiperformancemonitor/internal/alert"
 	"apiperformancemonitor/internal/api"
 	"apiperformancemonitor/internal/config"
 	"apiperformancemonitor/internal/monitor"
 	"apiperformancemonitor/internal/store"
-	"apiperformancemonitor/internal/alert"
 )
 
 func main() {
 	_ = godotenv.Load() // loads .env if present
 
 	cfg := config.Load()
-	if cfg.DatabaseURL == "" { log.Fatal("DATABASE_URL not set") }
+	if cfg.DatabaseURL == "" {
+		log.Fatal("DATABASE_URL not set")
+	}
 
 	ctx := context.Background()
 	st, err := store.New(ctx, cfg.DatabaseURL)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	throttleMinutes := 15
 	if v := os.Getenv("ALERT_THROTTLE_MINUTES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil { throttleMinutes = n }
+		if n, err := strconv.Atoi(v); err == nil {
+			throttleMinutes = n
+		}
 	}
 	// start monitor worker
 	runner := &monitor.Runner{
@@ -40,7 +57,7 @@ func main() {
 		EmailCfg: alert.SMTP{
 			Host: cfg.SMTPHost, Port: cfg.SMTPPort, User: cfg.SMTPUser, Pass: cfg.SMTPPass, From: cfg.SMTPFrom,
 		},
-		EmailTo: cfg.AlertEmails,
+		EmailTo:  cfg.AlertEmails,
 		Throttle: alert.NewThrottle(time.Duration(throttleMinutes) * time.Minute),
 	}
 	go runner.Start(ctx)
@@ -56,11 +73,14 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-
 	srv := &api.Server{S: st}
 	srv.Routes(r)
 
 	port := os.Getenv("PORT")
-	if port == "" { port = "8080" }
-	if err := r.Run(":" + port); err != nil { log.Fatal(err) }
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
+		log.Fatal(err)
+	}
 }
