@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # API Performance Monitor
 
 A comprehensive, full-stack API performance monitoring system that tracks website uptime, response times, and sends intelligent alerts via email and Discord. Built with Go for the backend and Next.js for the frontend dashboard.
